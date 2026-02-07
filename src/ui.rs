@@ -7,7 +7,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     Terminal,
 };
 use std::io;
@@ -33,24 +33,33 @@ pub struct App {
     pub results: Vec<Result>,
     pub current_exec: usize,
     pub output_filename: String,
+    pub perturbacao_state: ListState,
+    pub max_iter_state: ListState,
 }
 
 impl App {
     pub fn new() -> Self {
+        let mut perturbacao_state = ListState::default();
+        perturbacao_state.select(Some(2));
+        let mut max_iter_state = ListState::default();
+        max_iter_state.select(Some(0));
+
         App {
             current_screen: Screen::Menu,
             selected_algorithm: 0,
             selected_m: 0,
             selected_r: 0,
             selected_perturbacao: 2,
-            selected_max_iter: 2,
+            selected_max_iter: 0,
             m_values: vec![10, 20, 50],
             r_values: vec![1.5, 2.0],
             perturbacao_values: vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
-            max_iter_values: vec![100, 500, 1000, 2000, 5000],
+            max_iter_values: vec![0, 100, 500, 1000, 2000, 5000],
             results: Vec::new(),
             current_exec: 0,
             output_filename: "resultados.csv".to_string(),
+            perturbacao_state,
+            max_iter_state,
         }
     }
 }
@@ -201,12 +210,22 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
             })
             .collect();
 
-        let pert_list = List::new(pert_items).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Intensidade de Perturbação (W/S)"),
+        let pert_list = List::new(pert_items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Intensidade de Perturbação (W/S)"),
+            )
+            .highlight_style(
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            );
+        f.render_stateful_widget(
+            pert_list,
+            menu_chunks[4],
+            &mut app.perturbacao_state.clone(),
         );
-        f.render_widget(pert_list, menu_chunks[4]);
 
         let max_iter_items: Vec<ListItem> = app
             .max_iter_values
@@ -224,12 +243,22 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
             })
             .collect();
 
-        let max_iter_list = List::new(max_iter_items).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Critério de Parada (A/D)"),
+        let max_iter_list = List::new(max_iter_items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Critério de Parada (A/D)"),
+            )
+            .highlight_style(
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            );
+        f.render_stateful_widget(
+            max_iter_list,
+            menu_chunks[5],
+            &mut app.max_iter_state.clone(),
         );
-        f.render_widget(max_iter_list, menu_chunks[5]);
     }
 
     let help_idx = if app.selected_algorithm == 1 { 6 } else { 4 };
@@ -340,6 +369,7 @@ fn handle_input(app: &mut App, key_code: KeyCode) -> io::Result<()> {
             KeyCode::Char('w') | KeyCode::Char('W') => {
                 if app.selected_algorithm == 1 && app.selected_perturbacao > 0 {
                     app.selected_perturbacao -= 1;
+                    app.perturbacao_state.select(Some(app.selected_perturbacao));
                 }
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
@@ -347,11 +377,13 @@ fn handle_input(app: &mut App, key_code: KeyCode) -> io::Result<()> {
                     && app.selected_perturbacao < app.perturbacao_values.len() - 1
                 {
                     app.selected_perturbacao += 1;
+                    app.perturbacao_state.select(Some(app.selected_perturbacao));
                 }
             }
             KeyCode::Char('a') | KeyCode::Char('A') => {
                 if app.selected_algorithm == 1 && app.selected_max_iter > 0 {
                     app.selected_max_iter -= 1;
+                    app.max_iter_state.select(Some(app.selected_max_iter));
                 }
             }
             KeyCode::Char('d') | KeyCode::Char('D') => {
@@ -359,6 +391,7 @@ fn handle_input(app: &mut App, key_code: KeyCode) -> io::Result<()> {
                     && app.selected_max_iter < app.max_iter_values.len() - 1
                 {
                     app.selected_max_iter += 1;
+                    app.max_iter_state.select(Some(app.selected_max_iter));
                 }
             }
             KeyCode::Enter => {
