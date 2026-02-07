@@ -35,6 +35,7 @@ pub struct App {
     pub output_filename: String,
     pub perturbacao_state: ListState,
     pub max_iter_state: ListState,
+    pub scroll_position: u16,
 }
 
 impl App {
@@ -60,6 +61,7 @@ impl App {
             output_filename: "resultados.csv".to_string(),
             perturbacao_state,
             max_iter_state,
+            scroll_position: 0,
         }
     }
 }
@@ -330,12 +332,13 @@ fn render_results(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from("Pressione ENTER para voltar ao menu"),
+            Line::from("Pressione ↑/↓ para rolar | ENTER para voltar ao menu"),
         ])
         .collect();
 
     let paragraph = Paragraph::new(results_text)
-        .block(Block::default().borders(Borders::ALL).title("Resultados"));
+        .block(Block::default().borders(Borders::ALL).title("Resultados"))
+        .scroll((app.scroll_position, 0));
     f.render_widget(paragraph, area);
 }
 
@@ -398,6 +401,7 @@ fn handle_input(app: &mut App, key_code: KeyCode) -> io::Result<()> {
                 app.current_screen = Screen::Running;
                 app.results.clear();
                 app.current_exec = 0;
+                app.scroll_position = 0;
             }
             _ => {}
         },
@@ -409,6 +413,15 @@ fn handle_input(app: &mut App, key_code: KeyCode) -> io::Result<()> {
         Screen::Results => match key_code {
             KeyCode::Char('q') | KeyCode::Enter => {
                 app.current_screen = Screen::Menu;
+                app.scroll_position = 0;
+            }
+            KeyCode::Up => {
+                if app.scroll_position > 0 {
+                    app.scroll_position -= 1;
+                }
+            }
+            KeyCode::Down => {
+                app.scroll_position += 1;
             }
             _ => {}
         },
