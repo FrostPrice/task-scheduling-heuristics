@@ -1,8 +1,19 @@
-use crate::blm::BLMResult;
 use std::fs::OpenOptions;
 use std::io::{self, Write};
 
-pub fn salvar_csv(resultado: &BLMResult, filename: &str) -> io::Result<()> {
+pub struct Result {
+    pub n_tarefas: usize,
+    pub n_maquinas: usize,
+    pub replicacao: f64,
+    pub tempo_exec: f64,
+    pub iteracoes: usize,
+    pub makespan_inicial: u32,
+    pub makespan_final: u32,
+    pub algoritmo: String,
+    pub perturbacao: f64,
+}
+
+pub fn salvar_csv(resultado: &Result, filename: &str) -> io::Result<()> {
     // Create results directory if it doesn't exist
     std::fs::create_dir_all("results")?;
 

@@ -1,4 +1,5 @@
-use crate::blm::{ms_total, BLMResult, Maquina};
+use crate::blm::{ms_total, Maquina};
+use crate::utils::Result;
 use rand::Rng;
 use std::time::Instant;
 
@@ -99,7 +100,7 @@ pub fn busca_local_iterada(
     tam_r: f64,
     perturbacao: f64,
     max_iteracoes_sem_melhora: u32,
-) -> BLMResult {
+) -> Result {
     let mut maquinas: Vec<Maquina> = (0..tam_m).map(|_| Maquina::new(tam_n)).collect();
     let mut rng = rand::thread_rng();
 
@@ -146,7 +147,7 @@ pub fn busca_local_iterada(
 
     let tempo_exec = tempo_s.elapsed().as_secs_f64() * 1000.0;
 
-    BLMResult {
+    Result {
         n_tarefas: tam_n,
         n_maquinas: tam_m,
         replicacao: tam_r,

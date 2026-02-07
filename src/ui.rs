@@ -1,6 +1,6 @@
-use crate::blm::{melhor_melhora, BLMResult};
+use crate::blm::melhor_melhora;
 use crate::blnm::busca_local_iterada;
-use crate::utils::salvar_csv;
+use crate::utils::{salvar_csv, Result};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
     backend::Backend,
@@ -30,7 +30,7 @@ pub struct App {
     pub r_values: Vec<f64>,
     pub perturbacao_values: Vec<f64>,
     pub max_iter_values: Vec<u32>,
-    pub results: Vec<BLMResult>,
+    pub results: Vec<Result>,
     pub current_exec: usize,
     pub output_filename: String,
 }

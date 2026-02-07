@@ -1,3 +1,4 @@
+use crate::utils::Result;
 use rand::Rng;
 use std::time::Instant;
 
@@ -20,18 +21,6 @@ impl Maquina {
         }
         self.tarefas[0..=(self.pos as usize)].iter().sum()
     }
-}
-
-pub struct BLMResult {
-    pub n_tarefas: usize,
-    pub n_maquinas: usize,
-    pub replicacao: f64,
-    pub tempo_exec: f64,
-    pub iteracoes: usize,
-    pub makespan_inicial: u32,
-    pub makespan_final: u32,
-    pub algoritmo: String,
-    pub perturbacao: f64,
 }
 
 pub fn ms_total(maquinas: &[Maquina]) -> u32 {
@@ -61,7 +50,7 @@ pub fn search_max_value(maquina: &Maquina, filtrar_menor: u32) -> i32 {
     pos
 }
 
-pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> BLMResult {
+pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> Result {
     let mut maquinas: Vec<Maquina> = (0..tam_m).map(|_| Maquina::new(tam_n)).collect();
     let mut rng = rand::thread_rng();
 
@@ -104,7 +93,7 @@ pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> BLMResult {
     let ms_f = ms_total(&maquinas);
     let tempo_exec = tempo_s.elapsed().as_secs_f64() * 1000.0;
 
-    BLMResult {
+    Result {
         n_tarefas: tam_n,
         n_maquinas: tam_m,
         replicacao: tam_r,
