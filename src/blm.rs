@@ -112,7 +112,7 @@ pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> BLMResult {
         iteracoes: moves,
         makespan_inicial: ms_s,
         makespan_final: ms_f,
-        algoritmo: "monotona".to_string(),
+        algoritmo: "busca-local-monotona-melhorada".to_string(),
         perturbacao: 0.0,
     }
 }

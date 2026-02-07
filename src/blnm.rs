@@ -149,7 +149,7 @@ pub fn busca_local_iterada(tam_m: usize, tam_n: usize, tam_r: f64, perturbacao: 
         iteracoes: iteracoes_totais,
         makespan_inicial: ms_s,
         makespan_final: melhor_makespan,
-        algoritmo: "iterada".to_string(),
+        algoritmo: "busca-local-iterada".to_string(),
         perturbacao,
     }
 }
