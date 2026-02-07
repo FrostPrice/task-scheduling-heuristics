@@ -25,9 +25,11 @@ pub struct App {
     pub selected_m: usize,
     pub selected_r: usize,
     pub selected_perturbacao: usize,
+    pub selected_max_iter: usize,
     pub m_values: Vec<usize>,
     pub r_values: Vec<f64>,
     pub perturbacao_values: Vec<f64>,
+    pub max_iter_values: Vec<u32>,
     pub results: Vec<BLMResult>,
     pub current_exec: usize,
     pub output_filename: String,
@@ -41,12 +43,14 @@ impl App {
             selected_m: 0,
             selected_r: 0,
             selected_perturbacao: 2,
+            selected_max_iter: 2,
             m_values: vec![10, 20, 50],
             r_values: vec![1.5, 2.0],
             perturbacao_values: vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+            max_iter_values: vec![100, 500, 1000, 2000, 5000],
             results: Vec::new(),
             current_exec: 0,
-            output_filename: "resultados_blm.csv".to_string(),
+            output_filename: "resultados.csv".to_string(),
         }
     }
 }
@@ -92,6 +96,7 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
             Constraint::Length(5),
             Constraint::Length(5),
             Constraint::Length(5),
+            Constraint::Length(if app.selected_algorithm == 1 { 7 } else { 0 }),
             Constraint::Length(if app.selected_algorithm == 1 { 7 } else { 0 }),
             Constraint::Min(0),
         ])
@@ -202,9 +207,32 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
                 .title("Intensidade de Perturbação (W/S)"),
         );
         f.render_widget(pert_list, menu_chunks[4]);
+
+        let max_iter_items: Vec<ListItem> = app
+            .max_iter_values
+            .iter()
+            .enumerate()
+            .map(|(i, val)| {
+                let style = if i == app.selected_max_iter {
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                };
+                ListItem::new(format!("Max Iter s/ Melhora: {val}")).style(style)
+            })
+            .collect();
+
+        let max_iter_list = List::new(max_iter_items).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Critério de Parada (A/D)"),
+        );
+        f.render_widget(max_iter_list, menu_chunks[5]);
     }
 
-    let help_idx = if app.selected_algorithm == 1 { 5 } else { 4 };
+    let help_idx = if app.selected_algorithm == 1 { 6 } else { 4 };
     let help = Paragraph::new(vec![
         Line::from("Pressione ENTER para executar | Q para sair"),
         Line::from(Span::styled(
@@ -267,7 +295,7 @@ fn render_results(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect
         .chain(vec![
             Line::from(""),
             Line::from(Span::styled(
-                format!("✓ Resultados salvos em: {}", app.output_filename),
+                format!("Resultados salvos em: {}", app.output_filename),
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),
@@ -321,6 +349,18 @@ fn handle_input(app: &mut App, key_code: KeyCode) -> io::Result<()> {
                     app.selected_perturbacao += 1;
                 }
             }
+            KeyCode::Char('a') | KeyCode::Char('A') => {
+                if app.selected_algorithm == 1 && app.selected_max_iter > 0 {
+                    app.selected_max_iter -= 1;
+                }
+            }
+            KeyCode::Char('d') | KeyCode::Char('D') => {
+                if app.selected_algorithm == 1
+                    && app.selected_max_iter < app.max_iter_values.len() - 1
+                {
+                    app.selected_max_iter += 1;
+                }
+            }
             KeyCode::Enter => {
                 app.current_screen = Screen::Running;
                 app.results.clear();
@@ -352,7 +392,8 @@ fn execute_blm(app: &mut App) {
         melhor_melhora(m, n, r)
     } else {
         let perturbacao = app.perturbacao_values[app.selected_perturbacao];
-        busca_local_iterada(m, n, r, perturbacao)
+        let max_iter = app.max_iter_values[app.selected_max_iter];
+        busca_local_iterada(m, n, r, perturbacao, max_iter)
     };
 
     // Save to CSV

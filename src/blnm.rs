@@ -93,7 +93,13 @@ fn aplicar_busca_local(maquinas: &mut [Maquina]) {
     }
 }
 
-pub fn busca_local_iterada(tam_m: usize, tam_n: usize, tam_r: f64, perturbacao: f64) -> BLMResult {
+pub fn busca_local_iterada(
+    tam_m: usize,
+    tam_n: usize,
+    tam_r: f64,
+    perturbacao: f64,
+    max_iteracoes_sem_melhora: u32,
+) -> BLMResult {
     let mut maquinas: Vec<Maquina> = (0..tam_m).map(|_| Maquina::new(tam_n)).collect();
     let mut rng = rand::thread_rng();
 
@@ -114,7 +120,6 @@ pub fn busca_local_iterada(tam_m: usize, tam_n: usize, tam_r: f64, perturbacao: 
 
     let mut iteracoes_sem_melhora = 0;
     let mut iteracoes_totais = 0;
-    let max_iteracoes_sem_melhora = 1000;
 
     while iteracoes_sem_melhora < max_iteracoes_sem_melhora {
         // Perturbar a melhor solução
