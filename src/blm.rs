@@ -1,6 +1,5 @@
+use crate::utils::Result;
 use rand::Rng;
-use std::fs::OpenOptions;
-use std::io::{self, Write};
 use std::time::Instant;
 
 pub struct Maquina {
@@ -24,59 +23,11 @@ impl Maquina {
     }
 }
 
-pub struct BLMResult {
-    pub n_tarefas: usize,
-    pub n_maquinas: usize,
-    pub replicacao: f64,
-    pub tempo_exec: f64,
-    pub iteracoes: usize,
-    pub makespan_inicial: u32,
-    pub makespan_final: u32,
-}
-
-impl BLMResult {
-    pub fn save_to_csv(&self, filename: &str) -> io::Result<()> {
-        // Create results directory if it doesn't exist
-        std::fs::create_dir_all("results")?;
-
-        // Prepend results/ to the filename
-        let filepath = format!("results/{filename}");
-
-        let file_exists = std::path::Path::new(&filepath).exists();
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&filepath)?;
-
-        // Write header if file is new
-        if !file_exists {
-            writeln!(
-                file,
-                "heuristica,n,m,replicacao,tempo,iteracoes,valor,parametro"
-            )?;
-        }
-
-        // Write data: heuristica,n,m,replicacao,tempo,iteracoes,valor,parametro
-        writeln!(
-            file,
-            "monotona,{},{},{},{:.2},{},{},NA",
-            self.n_tarefas,
-            self.n_maquinas,
-            self.replicacao,
-            self.tempo_exec,
-            self.iteracoes,
-            self.makespan_final
-        )?;
-
-        Ok(())
-    }
-}
-
-fn ms_total(maquinas: &[Maquina]) -> u32 {
+pub fn ms_total(maquinas: &[Maquina]) -> u32 {
     maquinas.iter().map(|m| m.ms_maquina()).max().unwrap_or(0)
 }
 
-fn pos_ms_min(maquinas: &[Maquina]) -> usize {
+pub fn pos_ms_min(maquinas: &[Maquina]) -> usize {
     maquinas
         .iter()
         .enumerate()
@@ -85,7 +36,7 @@ fn pos_ms_min(maquinas: &[Maquina]) -> usize {
         .unwrap_or(0)
 }
 
-fn search_max_value(maquina: &Maquina, filtrar_menor: u32) -> i32 {
+pub fn search_max_value(maquina: &Maquina, filtrar_menor: u32) -> i32 {
     let mut pos = -1;
     let mut valor = 0;
 
@@ -99,7 +50,7 @@ fn search_max_value(maquina: &Maquina, filtrar_menor: u32) -> i32 {
     pos
 }
 
-pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> BLMResult {
+pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> Result {
     let mut maquinas: Vec<Maquina> = (0..tam_m).map(|_| Maquina::new(tam_n)).collect();
     let mut rng = rand::thread_rng();
 
@@ -142,7 +93,7 @@ pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> BLMResult {
     let ms_f = ms_total(&maquinas);
     let tempo_exec = tempo_s.elapsed().as_secs_f64() * 1000.0;
 
-    BLMResult {
+    Result {
         n_tarefas: tam_n,
         n_maquinas: tam_m,
         replicacao: tam_r,
@@ -150,5 +101,7 @@ pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> BLMResult {
         iteracoes: moves,
         makespan_inicial: ms_s,
         makespan_final: ms_f,
+        algoritmo: "busca-local-monotona-melhorada".to_string(),
+        perturbacao: 0.0,
     }
 }
