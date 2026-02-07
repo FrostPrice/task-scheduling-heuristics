@@ -36,11 +36,17 @@ pub struct BLMResult {
 
 impl BLMResult {
     pub fn save_to_csv(&self, filename: &str) -> io::Result<()> {
-        let file_exists = std::path::Path::new(filename).exists();
+        // Create results directory if it doesn't exist
+        std::fs::create_dir_all("results")?;
+
+        // Prepend results/ to the filename
+        let filepath = format!("results/{}", filename);
+
+        let file_exists = std::path::Path::new(&filepath).exists();
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(filename)?;
+            .open(&filepath)?;
 
         // Write header if file is new
         if !file_exists {
