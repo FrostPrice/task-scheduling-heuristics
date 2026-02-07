@@ -40,7 +40,7 @@ impl BLMResult {
         std::fs::create_dir_all("results")?;
 
         // Prepend results/ to the filename
-        let filepath = format!("results/{}", filename);
+        let filepath = format!("results/{filename}");
 
         let file_exists = std::path::Path::new(&filepath).exists();
         let mut file = OpenOptions::new()

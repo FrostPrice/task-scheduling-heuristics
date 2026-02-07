@@ -108,7 +108,7 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
             } else {
                 Style::default()
             };
-            ListItem::new(format!("Máquinas: {}", m)).style(style)
+            ListItem::new(format!("Máquinas: {m}")).style(style)
         })
         .collect();
 
@@ -131,7 +131,7 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
             } else {
                 Style::default()
             };
-            ListItem::new(format!("Replicação: {}", r)).style(style)
+            ListItem::new(format!("Replicação: {r}")).style(style)
         })
         .collect();
 
@@ -243,12 +243,11 @@ fn handle_input(app: &mut App, key_code: KeyCode) -> io::Result<()> {
             }
             _ => {}
         },
-        Screen::Running => match key_code {
-            KeyCode::Char('q') => {
+        Screen::Running => {
+            if let KeyCode::Char('q') = key_code {
                 app.current_screen = Screen::Menu;
             }
-            _ => {}
-        },
+        }
         Screen::Results => match key_code {
             KeyCode::Char('q') | KeyCode::Enter => {
                 app.current_screen = Screen::Menu;
@@ -268,7 +267,7 @@ fn execute_blm(app: &mut App) {
 
     // Save to CSV
     if let Err(e) = result.save_to_csv(&app.output_filename) {
-        eprintln!("Erro ao salvar arquivo: {}", e);
+        eprintln!("Erro ao salvar arquivo: {e}");
     }
 
     app.results.push(result);
