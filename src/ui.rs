@@ -160,15 +160,17 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
             } else {
                 Style::default()
             };
-            ListItem::new(format!("Máquinas: {m}")).style(style)
+            let prefix = if i == app.selected_m { "► " } else { "  " };
+            ListItem::new(format!("{prefix}Máquinas: {m}")).style(style)
         })
         .collect();
 
-    let m_list = List::new(m_items).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title("Número de Máquinas (↑/↓)"),
+    let m_title = format!(
+        "Número de Máquinas (↑/↓) [{}/{}]",
+        app.selected_m + 1,
+        app.m_values.len()
     );
+    let m_list = List::new(m_items).block(Block::default().borders(Borders::ALL).title(m_title));
     f.render_widget(m_list, menu_chunks[2]);
 
     let r_items: Vec<ListItem> = app
@@ -183,15 +185,17 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
             } else {
                 Style::default()
             };
-            ListItem::new(format!("Replicação: {r}")).style(style)
+            let prefix = if i == app.selected_r { "► " } else { "  " };
+            ListItem::new(format!("{prefix}Replicação: {r}")).style(style)
         })
         .collect();
 
-    let r_list = List::new(r_items).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title("Fator de Replicação (←/→)"),
+    let r_title = format!(
+        "Fator de Replicação (←/→) [{}/{}]",
+        app.selected_r + 1,
+        app.r_values.len()
     );
+    let r_list = List::new(r_items).block(Block::default().borders(Borders::ALL).title(r_title));
     f.render_widget(r_list, menu_chunks[3]);
 
     // Mostrar perturbação apenas se ILS estiver selecionado
@@ -208,15 +212,45 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
                 } else {
                     Style::default()
                 };
-                ListItem::new(format!("Perturbação: {p}")).style(style)
+                let prefix = if i == app.selected_perturbacao {
+                    "► "
+                } else {
+                    "  "
+                };
+                let scroll_hint = if i == 0 && app.perturbacao_values.len() > 1 {
+                    " ▼"
+                } else if i == app.perturbacao_values.len() - 1 && app.perturbacao_values.len() > 1
+                {
+                    " ▲"
+                } else if i == app.selected_perturbacao && app.perturbacao_values.len() > 1 {
+                    if i > 0 && i < app.perturbacao_values.len() - 1 {
+                        " ▲▼"
+                    } else {
+                        ""
+                    }
+                } else {
+                    ""
+                };
+                ListItem::new(format!("{prefix}Perturbação: {p}{scroll_hint}")).style(style)
             })
             .collect();
 
+        let pert_title = format!(
+            "Intensidade de Perturbação (W/S) [{}/{}] {}",
+            app.selected_perturbacao + 1,
+            app.perturbacao_values.len(),
+            if app.perturbacao_values.len() > 1 {
+                "↕"
+            } else {
+                ""
+            }
+        );
         let pert_list = List::new(pert_items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title("Intensidade de Perturbação (W/S)"),
+                    .title(pert_title)
+                    .border_style(Style::default().fg(Color::Cyan)),
             )
             .highlight_style(
                 Style::default()
@@ -241,15 +275,45 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
                 } else {
                     Style::default()
                 };
-                ListItem::new(format!("Max Iter s/ Melhora: {val}")).style(style)
+                let prefix = if i == app.selected_max_iter {
+                    "► "
+                } else {
+                    "  "
+                };
+                let scroll_hint = if i == 0 && app.max_iter_values.len() > 1 {
+                    " ▼"
+                } else if i == app.max_iter_values.len() - 1 && app.max_iter_values.len() > 1 {
+                    " ▲"
+                } else if i == app.selected_max_iter && app.max_iter_values.len() > 1 {
+                    if i > 0 && i < app.max_iter_values.len() - 1 {
+                        " ▲▼"
+                    } else {
+                        ""
+                    }
+                } else {
+                    ""
+                };
+                ListItem::new(format!("{prefix}Max Iter s/ Melhora: {val}{scroll_hint}"))
+                    .style(style)
             })
             .collect();
 
+        let max_iter_title = format!(
+            "Critério de Parada (A/D) [{}/{}] {}",
+            app.selected_max_iter + 1,
+            app.max_iter_values.len(),
+            if app.max_iter_values.len() > 1 {
+                "↕"
+            } else {
+                ""
+            }
+        );
         let max_iter_list = List::new(max_iter_items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title("Critério de Parada (A/D)"),
+                    .title(max_iter_title)
+                    .border_style(Style::default().fg(Color::Cyan)),
             )
             .highlight_style(
                 Style::default()
@@ -332,12 +396,42 @@ fn render_results(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from("Pressione ↑/↓ para rolar | ENTER para voltar ao menu"),
+            Line::from(Span::styled(
+                "Pressione ↑/↓ para rolar | ENTER para voltar ao menu",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )),
         ])
         .collect();
 
+    let total_lines = results_text.len() as u16;
+    let visible_lines = area.height.saturating_sub(2); // subtract borders
+    let can_scroll_up = app.scroll_position > 0;
+    let can_scroll_down = app.scroll_position + visible_lines < total_lines;
+
+    let scroll_indicator = if can_scroll_up && can_scroll_down {
+        " ↕ SCROLL"
+    } else if can_scroll_up {
+        " ↑ SCROLL UP"
+    } else if can_scroll_down {
+        " ↓ SCROLL DOWN"
+    } else {
+        ""
+    };
+
+    let title = format!("Resultados{scroll_indicator}");
     let paragraph = Paragraph::new(results_text)
-        .block(Block::default().borders(Borders::ALL).title("Resultados"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(title)
+                .border_style(if scroll_indicator.is_empty() {
+                    Style::default()
+                } else {
+                    Style::default().fg(Color::Cyan)
+                }),
+        )
         .scroll((app.scroll_position, 0));
     f.render_widget(paragraph, area);
 }
