@@ -43,7 +43,7 @@ impl App {
         let mut perturbacao_state = ListState::default();
         perturbacao_state.select(Some(2));
         let mut max_iter_state = ListState::default();
-        max_iter_state.select(Some(0));
+        max_iter_state.select(Some(3));
 
         App {
             current_screen: Screen::Menu,
@@ -51,7 +51,7 @@ impl App {
             selected_m: 0,
             selected_r: 0,
             selected_perturbacao: 2,
-            selected_max_iter: 0,
+            selected_max_iter: 3,
             m_values: vec![10, 20, 50],
             r_values: vec![1.5, 2.0],
             perturbacao_values: vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
