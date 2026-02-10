@@ -1,3 +1,4 @@
+mod animation;
 mod blm;
 mod blnm;
 mod ui;

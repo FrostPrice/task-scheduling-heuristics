@@ -1,3 +1,4 @@
+use crate::animation::{AnimationEvent, AnimationScreen};
 use crate::blm::melhor_melhora;
 use crate::blnm::busca_local_iterada;
 use crate::utils::{salvar_csv, Result};
@@ -17,6 +18,8 @@ pub enum Screen {
     Menu,
     Running,
     Results,
+    Animation,
+    RunSelector,
 }
 
 pub struct App {
@@ -26,6 +29,7 @@ pub struct App {
     pub selected_r: usize,
     pub selected_perturbacao: usize,
     pub selected_max_iter: usize,
+    pub animation_enabled: bool,
     pub m_values: Vec<usize>,
     pub r_values: Vec<f64>,
     pub perturbacao_values: Vec<f64>,
@@ -36,6 +40,8 @@ pub struct App {
     pub perturbacao_state: ListState,
     pub max_iter_state: ListState,
     pub scroll_position: u16,
+    pub animation_screen: Option<AnimationScreen>,
+    pub selected_run: usize,
 }
 
 impl App {
@@ -52,6 +58,7 @@ impl App {
             selected_r: 0,
             selected_perturbacao: 2,
             selected_max_iter: 3,
+            animation_enabled: false,
             m_values: vec![10, 20, 50],
             r_values: vec![1.5, 2.0],
             perturbacao_values: vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
@@ -62,6 +69,8 @@ impl App {
             perturbacao_state,
             max_iter_state,
             scroll_position: 0,
+            animation_screen: None,
+            selected_run: 0,
         }
     }
 }
@@ -84,12 +93,27 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Resu
                 Screen::Results => {
                     render_results(f, &app, chunks[0]);
                 }
+                Screen::Animation => {
+                    if let Some(ref animation) = app.animation_screen {
+                        crate::animation::render_animation(f, animation, chunks[0]);
+                    }
+                }
+                Screen::RunSelector => {
+                    render_run_selector(f, &app, chunks[0]);
+                }
             }
         })?;
 
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 handle_input(&mut app, key.code)?;
+            }
+        }
+
+        // Update animation if playing
+        if matches!(app.current_screen, Screen::Animation) {
+            if let Some(ref mut animation) = app.animation_screen {
+                animation.update();
             }
         }
 
@@ -107,6 +131,7 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
             Constraint::Length(5),
             Constraint::Length(5),
             Constraint::Length(5),
+            Constraint::Length(4),  // Animation toggle
             Constraint::Length(if app.selected_algorithm == 1 { 7 } else { 0 }),
             Constraint::Length(if app.selected_algorithm == 1 { 7 } else { 0 }),
             Constraint::Min(0),
@@ -198,6 +223,22 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
     let r_list = List::new(r_items).block(Block::default().borders(Borders::ALL).title(r_title));
     f.render_widget(r_list, menu_chunks[3]);
 
+    // Animation toggle
+    let animation_text = if app.animation_enabled {
+        "✓ Animation Enabled (Press E to disable)"
+    } else {
+        "✗ Animation Disabled (Press E to enable)"
+    };
+    let animation_style = if app.animation_enabled {
+        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Gray)
+    };
+    let animation_widget = Paragraph::new(animation_text)
+        .style(animation_style)
+        .block(Block::default().borders(Borders::ALL).title("Animation (E)"));
+    f.render_widget(animation_widget, menu_chunks[4]);
+
     // Mostrar perturbação apenas se ILS estiver selecionado
     if app.selected_algorithm == 1 {
         let pert_items: Vec<ListItem> = app
@@ -259,7 +300,7 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
             );
         f.render_stateful_widget(
             pert_list,
-            menu_chunks[4],
+            menu_chunks[5],
             &mut app.perturbacao_state.clone(),
         );
 
@@ -322,12 +363,12 @@ fn render_menu(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
             );
         f.render_stateful_widget(
             max_iter_list,
-            menu_chunks[5],
+            menu_chunks[6],
             &mut app.max_iter_state.clone(),
         );
     }
 
-    let help_idx = if app.selected_algorithm == 1 { 6 } else { 4 };
+    let help_idx = if app.selected_algorithm == 1 { 7 } else { 5 };
     let help = Paragraph::new(vec![
         Line::from("Pressione ENTER para executar | Q para sair"),
         Line::from(Span::styled(
@@ -436,6 +477,51 @@ fn render_results(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect
     f.render_widget(paragraph, area);
 }
 
+fn render_run_selector(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect) {
+    let title_text = "Select which run to animate (1-10)";
+    
+    let run_items: Vec<ListItem> = (1..=10)
+        .map(|i| {
+            let style = if i - 1 == app.selected_run {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            let prefix = if i - 1 == app.selected_run { "► " } else { "  " };
+            let result_info = if let Some(result) = app.results.get(i - 1) {
+                format!(
+                    "{}Run {}: Makespan {} → {} ({} iterations)",
+                    prefix, i, result.makespan_inicial, result.makespan_final, result.iteracoes
+                )
+            } else {
+                format!("{}Run {}: Not yet executed", prefix, i)
+            };
+            ListItem::new(result_info).style(style)
+        })
+        .collect();
+
+    let list = List::new(run_items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(title_text)
+            .border_style(Style::default().fg(Color::Cyan)),
+    );
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(3)])
+        .split(area);
+
+    f.render_widget(list, chunks[0]);
+
+    let help = Paragraph::new("Use ↑/↓ to select | ENTER to start animation | ESC to go back")
+        .style(Style::default().fg(Color::Green))
+        .block(Block::default().borders(Borders::ALL));
+    f.render_widget(help, chunks[1]);
+}
+
 fn handle_input(app: &mut App, key_code: KeyCode) -> io::Result<()> {
     match app.current_screen {
         Screen::Menu => match key_code {
@@ -491,6 +577,9 @@ fn handle_input(app: &mut App, key_code: KeyCode) -> io::Result<()> {
                     app.max_iter_state.select(Some(app.selected_max_iter));
                 }
             }
+            KeyCode::Char('e') | KeyCode::Char('E') => {
+                app.animation_enabled = !app.animation_enabled;
+            }
             KeyCode::Enter => {
                 app.current_screen = Screen::Running;
                 app.results.clear();
@@ -519,6 +608,57 @@ fn handle_input(app: &mut App, key_code: KeyCode) -> io::Result<()> {
             }
             _ => {}
         },
+        Screen::RunSelector => match key_code {
+            KeyCode::Esc => {
+                app.current_screen = Screen::Results;
+                app.selected_run = 0;
+            }
+            KeyCode::Up => {
+                if app.selected_run > 0 {
+                    app.selected_run -= 1;
+                }
+            }
+            KeyCode::Down => {
+                if app.selected_run < 9 {
+                    app.selected_run += 1;
+                }
+            }
+            KeyCode::Enter => {
+                // Execute selected run with animation
+                execute_with_animation(app);
+                app.current_screen = Screen::Animation;
+            }
+            _ => {}
+        },
+        Screen::Animation => {
+            if let Some(ref mut animation) = app.animation_screen {
+                match key_code {
+                    KeyCode::Esc => {
+                        app.current_screen = Screen::Results;
+                        app.animation_screen = None;
+                    }
+                    KeyCode::Char(' ') => {
+                        animation.toggle_playback();
+                    }
+                    KeyCode::Left => {
+                        animation.step_backward();
+                    }
+                    KeyCode::Right => {
+                        animation.step_forward();
+                    }
+                    KeyCode::Up => {
+                        animation.increase_speed();
+                    }
+                    KeyCode::Down => {
+                        animation.decrease_speed();
+                    }
+                    KeyCode::Char('r') | KeyCode::Char('R') => {
+                        animation.restart();
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -545,6 +685,33 @@ fn execute_blm(app: &mut App) {
     app.current_exec += 1;
 
     if app.current_exec >= 10 {
-        app.current_screen = Screen::Results;
+        if app.animation_enabled {
+            app.current_screen = Screen::RunSelector;
+        } else {
+            app.current_screen = Screen::Results;
+        }
     }
+}
+
+fn execute_with_animation(app: &mut App) {
+    use crate::blm::melhor_melhora_with_events;
+    use crate::blnm::busca_local_iterada_with_events;
+    
+    let m = app.m_values[app.selected_m];
+    let r = app.r_values[app.selected_r];
+    let n = (m as f64).powf(r) as usize;
+
+    let mut events: Vec<AnimationEvent> = Vec::new();
+
+    let algorithm_name = if app.selected_algorithm == 0 {
+        melhor_melhora_with_events(m, n, r, Some(&mut events));
+        "Busca Local Monotônica - Melhor Melhora".to_string()
+    } else {
+        let perturbacao = app.perturbacao_values[app.selected_perturbacao];
+        let max_iter = app.max_iter_values[app.selected_max_iter];
+        busca_local_iterada_with_events(m, n, r, perturbacao, max_iter, Some(&mut events));
+        "Busca Local Iterada".to_string()
+    };
+
+    app.animation_screen = Some(AnimationScreen::new(events, algorithm_name));
 }

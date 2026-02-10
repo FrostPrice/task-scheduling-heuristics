@@ -1,3 +1,4 @@
+use crate::animation::{AnimationEvent, MachineState};
 use crate::utils::Result;
 use rand::Rng;
 use std::time::Instant;
@@ -51,6 +52,15 @@ pub fn search_max_value(maquina: &Maquina, filtrar_menor: u32) -> i32 {
 }
 
 pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> Result {
+    melhor_melhora_with_events(tam_m, tam_n, tam_r, None)
+}
+
+pub fn melhor_melhora_with_events(
+    tam_m: usize,
+    tam_n: usize,
+    tam_r: f64,
+    mut event_collector: Option<&mut Vec<AnimationEvent>>,
+) -> Result {
     let mut maquinas: Vec<Maquina> = (0..tam_m).map(|_| Maquina::new(tam_n)).collect();
     let mut rng = rand::thread_rng();
 
@@ -58,15 +68,40 @@ pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> Result {
         let value = rng.gen_range(1..=100);
         maquinas[0].tarefas[i] = value;
         maquinas[0].pos += 1;
+
+        if let Some(events) = event_collector.as_deref_mut() {
+            events.push(AnimationEvent::TaskGenerated {
+                machine_id: 0,
+                task_value: value,
+                task_index: i,
+            });
+        }
+    }
+
+    if let Some(events) = event_collector.as_deref_mut() {
+        events.push(AnimationEvent::MachineSnapshot {
+            machines: MachineState::from_maquinas(&maquinas),
+        });
     }
 
     let ms_s = ms_total(&maquinas);
     let tempo_s = Instant::now();
-    let mut moves = 0;
+    let mut moves: usize = 0;
 
     loop {
         let ms = ms_total(&maquinas);
         let pos_min = pos_ms_min(&maquinas);
+
+        if let Some(events) = event_collector.as_deref_mut() {
+            events.push(AnimationEvent::ComparingMachines {
+                min_machine_id: pos_min,
+                min_makespan: maquinas[pos_min].ms_maquina(),
+                total_makespan: ms,
+            });
+            events.push(AnimationEvent::MachineSnapshot {
+                machines: MachineState::from_maquinas(&maquinas),
+            });
+        }
 
         if pos_min == 0 {
             break;
@@ -76,10 +111,45 @@ pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> Result {
         let pos_max_value = search_max_value(&maquinas[0], 0);
 
         if pos_max_value == -1 || ms_n + maquinas[0].tarefas[pos_max_value as usize] > ms {
+            if let Some(events) = event_collector.as_deref_mut() {
+                if pos_max_value != -1 {
+                    let task_value = maquinas[0].tarefas[pos_max_value as usize];
+                    events.push(AnimationEvent::EvaluatingMove {
+                        from_machine: 0,
+                        to_machine: pos_min,
+                        task_value,
+                        task_index: pos_max_value as usize,
+                        new_makespan_would_be: ms_n + task_value,
+                        current_makespan: ms,
+                        will_move: false,
+                    });
+                    events.push(AnimationEvent::MachineSnapshot {
+                        machines: MachineState::from_maquinas(&maquinas),
+                    });
+                }
+            }
             break;
         }
 
         let tarefa = maquinas[0].tarefas[pos_max_value as usize];
+
+        if let Some(events) = event_collector.as_deref_mut() {
+            events.push(AnimationEvent::EvaluatingMove {
+                from_machine: 0,
+                to_machine: pos_min,
+                task_value: tarefa,
+                task_index: pos_max_value as usize,
+                new_makespan_would_be: ms_n + tarefa,
+                current_makespan: ms,
+                will_move: true,
+            });
+            events.push(AnimationEvent::MachineSnapshot {
+                machines: MachineState::from_maquinas(&maquinas),
+            });
+        }
+
+        let old_makespan = ms;
+
         maquinas[pos_min].pos += 1;
         let pos = maquinas[pos_min].pos as usize;
         maquinas[pos_min].tarefas[pos] = tarefa;
@@ -88,10 +158,42 @@ pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> Result {
         maquinas[0].tarefas.push(0);
         maquinas[0].pos -= 1;
         moves += 1;
+
+        let new_makespan = ms_total(&maquinas);
+
+        if let Some(events) = event_collector.as_deref_mut() {
+            events.push(AnimationEvent::TaskMoved {
+                from_machine: 0,
+                to_machine: pos_min,
+                task_value: tarefa,
+                old_makespan,
+                new_makespan,
+            });
+            events.push(AnimationEvent::MachineSnapshot {
+                machines: MachineState::from_maquinas(&maquinas),
+            });
+            events.push(AnimationEvent::IterationComplete {
+                iteration: moves as u32,
+                total_makespan: new_makespan,
+            });
+            events.push(AnimationEvent::MachineSnapshot {
+                machines: MachineState::from_maquinas(&maquinas),
+            });
+        }
     }
 
     let ms_f = ms_total(&maquinas);
     let tempo_exec = tempo_s.elapsed().as_secs_f64() * 1000.0;
+
+    if let Some(events) = event_collector {
+        events.push(AnimationEvent::AlgorithmComplete {
+            final_makespan: ms_f,
+            total_moves: moves as u32,
+        });
+        events.push(AnimationEvent::MachineSnapshot {
+            machines: MachineState::from_maquinas(&maquinas),
+        });
+    }
 
     Result {
         n_tarefas: tam_n,
