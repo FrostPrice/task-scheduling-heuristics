@@ -50,6 +50,19 @@ pub fn search_max_value(maquina: &Maquina, filtrar_menor: u32) -> i32 {
     pos
 }
 
+pub fn embaralhar_maquina(maquina: &mut Maquina, rng: &mut impl Rng) {
+    if maquina.pos < 0 {
+        return;
+    }
+
+    // Fisher-Yates shuffle para embaralhar as tarefas ativas
+    let n = (maquina.pos + 1) as usize;
+    for i in (1..n).rev() {
+        let j = rng.gen_range(0..=i);
+        maquina.tarefas.swap(i, j);
+    }
+}
+
 pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> Result {
     let mut maquinas: Vec<Maquina> = (0..tam_m).map(|_| Maquina::new(tam_n)).collect();
     let mut rng = rand::thread_rng();
@@ -65,6 +78,9 @@ pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> Result {
     let mut moves = 0;
 
     loop {
+        // Randomizar ordem das tarefas na máquina 0 a cada iteração
+        embaralhar_maquina(&mut maquinas[0], &mut rng);
+
         let ms = ms_total(&maquinas);
         let pos_min = pos_ms_min(&maquinas);
 

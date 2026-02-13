@@ -1,4 +1,4 @@
-use crate::blm::{ms_total, Maquina};
+use crate::blm::{embaralhar_maquina, ms_total, Maquina};
 use crate::utils::Result;
 use rand::Rng;
 use std::time::Instant;
@@ -110,6 +110,9 @@ pub fn busca_local_iterada(
         maquinas[0].tarefas[i] = value;
         maquinas[0].pos += 1;
     }
+
+    // Randomizar ordem das tarefas na máquina 0 a cada iteração
+    embaralhar_maquina(&mut maquinas[0], &mut rng);
 
     let ms_s = ms_total(&maquinas);
     let tempo_s = Instant::now();
