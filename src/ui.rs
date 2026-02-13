@@ -36,6 +36,7 @@ pub struct App {
     pub perturbacao_state: ListState,
     pub max_iter_state: ListState,
     pub scroll_position: u16,
+    pub should_quit: bool,
 }
 
 impl App {
@@ -62,12 +63,17 @@ impl App {
             perturbacao_state,
             max_iter_state,
             scroll_position: 0,
+            should_quit: false,
         }
     }
 }
 
 pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
     loop {
+        if app.should_quit {
+            break Ok(());
+        }
+
         terminal.draw(|f| {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
@@ -439,7 +445,9 @@ fn render_results(f: &mut ratatui::Frame, app: &App, area: ratatui::layout::Rect
 fn handle_input(app: &mut App, key_code: KeyCode) -> io::Result<()> {
     match app.current_screen {
         Screen::Menu => match key_code {
-            KeyCode::Char('q') => std::process::exit(0),
+            KeyCode::Char('q') => {
+                app.should_quit = true;
+            }
             KeyCode::Tab => {
                 app.selected_algorithm = if app.selected_algorithm == 0 { 1 } else { 0 };
             }
