@@ -30,11 +30,11 @@ pub fn salvar_csv(resultado: &Result, filename: &str) -> io::Result<()> {
     if !file_exists {
         writeln!(
             file,
-            "heuristica,n,m,replicacao,tempo,iteracoes,valor,parametro"
+            "heuristica,n,m,replicacao,tempo(ms),iteracoes,valor,parametro"
         )?;
     }
 
-    // Write data: heuristica,n,m,replicacao,tempo,iteracoes,valor,parametro
+    // Write data: heuristica,n,m,replicacao,tempo(ms),iteracoes,valor,parametro
     let parametro = if resultado.perturbacao > 0.0 {
         format!("{:.1}", resultado.perturbacao)
     } else {
