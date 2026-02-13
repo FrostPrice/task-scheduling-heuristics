@@ -74,13 +74,13 @@ pub fn melhor_melhora(tam_m: usize, tam_n: usize, tam_r: f64) -> Result {
     }
 
     let ms_s = ms_total(&maquinas);
+
+    // Embaralhar a máquina 0
+    embaralhar_maquina(&mut maquinas[0], &mut rng);
     let tempo_s = Instant::now();
     let mut moves = 0;
 
     loop {
-        // Randomizar ordem das tarefas na máquina 0 a cada iteração
-        embaralhar_maquina(&mut maquinas[0], &mut rng);
-
         let ms = ms_total(&maquinas);
         let pos_min = pos_ms_min(&maquinas);
 
